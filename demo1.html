@@ -524,7 +524,9 @@
                             </select>
                         </div>
                     </div>
-
+		<div style="text-align: right; margin-bottom: 10px;">
+    			<button class="btn btn-danger" onclick="deleteAllExpenses()">🗑️ Xóa Tất Cả</button>
+		</div>
                     <div class="expense-list" id="expenseList">
                         <div id="transactionsList"></div>
                     </div>
@@ -609,9 +611,10 @@
                     <h2 class="section-title">📈 Biểu Đồ Phân Tích</h2>
                     
                     <div style="text-align: center; margin: 20px 0;">
-                        <button class="btn" onclick="showChart('category', this)">📊 Theo Danh Mục</button>
-                        <button class="btn" onclick="showChart('monthly', this)">📈 Theo Tháng</button>
-                        <button class="btn" onclick="showChart('daily', this)">📉 Theo Ngày</button>
+                        <button class="btn" onclick="showChart('category', 'pie', this)">🥧 Theo Danh Mục (Tròn)</button>
+                        <button class="btn" onclick="showChart('category', 'bar', this)">📊 Theo Danh Mục (Cột)</button>
+                        <button class="btn" onclick="showChart('monthly', 'bar', this)">📈 Theo Tháng</button>
+                        <button class="btn" onclick="showChart('daily', 'line', this)">📉 Theo Ngày</button>
                     </div>
                     
                     <div class="chart-container">
@@ -674,15 +677,11 @@
     </div>
 
     <script>
-        // Biến toàn cục
         let expenses = [];
-        let limits = {
-            daily: 0,
-            monthly: 0,
-            categories: {}
-        };
+        let limits = { daily: 0, monthly: 0, categories: {} };
         let currentPeriod = 'month';
         let currentChartType = 'category';
+        let currentChartStyle = 'pie';
         let chart = null;
         let deleteId = null;
 
@@ -697,7 +696,6 @@
             { value: 'Khác', label: '🔧 Khác' }
         ];
 
-        // Khởi tạo ứng dụng
         document.addEventListener('DOMContentLoaded', function() {
             loadData();
             document.getElementById('date').value = new Date().toISOString().split('T')[0];
@@ -705,8 +703,7 @@
             updateStats('month');
             loadLimits();
             updateLimitProgress();
-            showChart('category');
-            // Cập nhật nút active cho báo cáo
+            showChart('category', 'pie');
             document.querySelector('#reports .btn').classList.add('active');
             document.querySelector('#reports .btn').click();
             document.querySelector('#reports .btn').classList.remove('active');
@@ -714,29 +711,20 @@
             document.querySelectorAll('#reports .btn')[5].classList.add('btn-info');
         });
 
-        // --- Utils & Persistence ---
-
-        // Định dạng tiền tệ
         function formatMoney(amount) {
-            return new Intl.NumberFormat('vi-VN', {
-                style: 'currency',
-                currency: 'VND'
-            }).format(amount);
+            return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
         }
 
-        // Định dạng ngày
         function formatDate(dateString) {
             const [year, month, day] = dateString.split('-');
-            return `${day}/${month}/${year}`;
+            return `${month}/${day}/${year}`;
         }
 
-        // Hiện thông báo
         function showNotification(message) {
             const notif = document.createElement('div');
             notif.classList.add('notification');
             notif.textContent = message;
             document.body.appendChild(notif);
-
             setTimeout(() => {
                 notif.style.opacity = '0';
                 notif.style.transform = 'translateX(100%)';
@@ -744,13 +732,11 @@
             }, 3000);
         }
 
-        // Tải dữ liệu từ localStorage
         function loadData() {
             const storedExpenses = localStorage.getItem('expenses');
             if (storedExpenses) {
                 expenses = JSON.parse(storedExpenses);
             } else {
-                // Dữ liệu mẫu ban đầu
                 expenses = [
                     { id: Date.now() + 1, date: '2024-12-15', category: 'Ăn uống', amount: 150000, description: 'Cơm trưa văn phòng' },
                     { id: Date.now() + 2, date: '2024-12-14', category: 'Di chuyển', amount: 50000, description: 'Xăng xe' },
@@ -759,31 +745,24 @@
             }
         }
 
-        // Lưu dữ liệu vào localStorage
         function saveData() {
             localStorage.setItem('expenses', JSON.stringify(expenses));
-            saveLimits(); // Cập nhật cả giới hạn
+            saveLimits();
         }
 
-        // Tải giới hạn từ localStorage
         function loadLimits() {
             const storedLimits = localStorage.getItem('limits');
             if (storedLimits) {
                 limits = JSON.parse(storedLimits);
             }
-            
             document.getElementById('dailyLimit').value = limits.daily || '';
             document.getElementById('monthlyLimit').value = limits.monthly || '';
-            
             renderCategoryLimits();
         }
 
-        // Lưu giới hạn vào localStorage
         function saveLimits() {
             limits.daily = parseFloat(document.getElementById('dailyLimit').value) || 0;
             limits.monthly = parseFloat(document.getElementById('monthlyLimit').value) || 0;
-            
-            // Lấy giới hạn danh mục từ DOM
             const limitContainer = document.getElementById('categoryLimits');
             const newCategoryLimits = {};
             limitContainer.querySelectorAll('.category-limit-item').forEach(item => {
@@ -793,31 +772,24 @@
                     newCategoryLimits[category] = limit;
                 }
             });
-
             limits.categories = newCategoryLimits;
-            
             localStorage.setItem('limits', JSON.stringify(limits));
             updateLimitProgress();
             showNotification('✅ Đã lưu giới hạn chi tiêu!');
         }
 
-
-        // Hiển thị tab
         function showTab(tabName, element) {
             document.querySelectorAll('.tab-content').forEach(tab => {
                 tab.classList.remove('active');
             });
-            
             document.querySelectorAll('.nav-tab').forEach(btn => {
                 btn.classList.remove('active');
             });
-            
             document.getElementById(tabName).classList.add('active');
             element.classList.add('active');
-            
             if (tabName === 'reports') {
                 updateStats(currentPeriod);
-                showChart(currentChartType);
+                showChart(currentChartType, currentChartStyle);
             } else if (tabName === 'limits') {
                 updateLimitProgress();
             } else if (tabName === 'transactions') {
@@ -825,14 +797,9 @@
             }
         }
 
-        // --- Tab Giao Dịch ---
-
-        // Xử lý form thêm giao dịch
         document.getElementById('expenseForm').addEventListener('submit', function(e) {
             e.preventDefault();
-            
             const amountValue = parseFloat(document.getElementById('amount').value);
-            
             const expense = {
                 id: Date.now(),
                 date: document.getElementById('date').value,
@@ -840,32 +807,24 @@
                 amount: amountValue,
                 description: document.getElementById('description').value || ''
             };
-            
             expenses.push(expense);
             saveData(); 
-            
             updateTransactionList();
             updateStats(currentPeriod);
             updateLimitProgress();
             checkLimitWarnings(expense);
-            
-            // Reset form
             document.getElementById('amount').value = '';
             document.getElementById('description').value = '';
             document.getElementById('category').value = '';
             document.getElementById('date').value = new Date().toISOString().split('T')[0];
-            
             showNotification('✅ Đã thêm giao dịch thành công!');
         });
 
-        // Cập nhật danh sách giao dịch
         function updateTransactionList(listId = 'transactionsList', filtered = expenses) {
             const container = document.getElementById(listId);
             const searchTerm = listId === 'transactionsList' ? document.getElementById('quickSearch').value.toLowerCase() : '';
             const sortBy = listId === 'transactionsList' ? document.getElementById('sortBy').value : 'date-desc';
-            
-            let displayExpenses = [...filtered]; // Sao chép mảng để lọc/sắp xếp
-            
+            let displayExpenses = [...filtered];
             if (listId === 'transactionsList' && searchTerm) {
                  displayExpenses = displayExpenses.filter(expense => {
                     return expense.date.includes(searchTerm) ||
@@ -874,28 +833,19 @@
                            expense.description.toLowerCase().includes(searchTerm);
                 });
             }
-
-            // Sắp xếp
             displayExpenses.sort((a, b) => {
                 switch(sortBy) {
-                    case 'date-desc':
-                        return new Date(b.date) - new Date(a.date);
-                    case 'date-asc':
-                        return new Date(a.date) - new Date(b.date);
-                    case 'amount-desc':
-                        return b.amount - a.amount;
-                    case 'amount-asc':
-                        return a.amount - b.amount;
-                    default:
-                        return new Date(b.date) - new Date(a.date);
+                    case 'date-desc': return new Date(b.date) - new Date(a.date);
+                    case 'date-asc': return new Date(a.date) - new Date(b.date);
+                    case 'amount-desc': return b.amount - a.amount;
+                    case 'amount-asc': return a.amount - b.amount;
+                    default: return new Date(b.date) - new Date(a.date);
                 }
             });
-            
             if (displayExpenses.length === 0) {
                 container.innerHTML = '<p style="text-align: center; color: #666;">Không có giao dịch nào phù hợp</p>';
                 return;
             }
-            
             container.innerHTML = displayExpenses.map(expense => `
                 <div class="expense-item">
                     <div class="actions">
@@ -909,35 +859,28 @@
             `).join('');
         }
 
-        // Xóa giao dịch (mở Modal)
         function deleteExpense(id) {
             deleteId = id;
             document.getElementById('confirmModal').style.display = 'block';
         }
 
-        // Đóng Modal
         function closeModal() {
             document.getElementById('confirmModal').style.display = 'none';
             deleteId = null;
         }
 
-        // Xác nhận xóa - Đã sửa lỗi ở đây
         function confirmDelete() {
             if (deleteId) {
                 expenses = expenses.filter(expense => expense.id !== deleteId);
-                saveData(); // Lưu lại vào localStorage sau khi xóa
+                saveData();
                 updateTransactionList();
                 updateStats(currentPeriod);
                 updateLimitProgress();
                 showNotification('✅ Đã xóa giao dịch thành công!');
-                closeModal(); // Đóng modal sau khi xóa
+                closeModal();
             }
         }
 
-
-        // --- Tìm Kiếm Nâng Cao ---
-
-        // Thực hiện tìm kiếm nâng cao
         function performAdvancedSearch() {
             const fromDate = document.getElementById('searchFromDate').value;
             const toDate = document.getElementById('searchToDate').value;
@@ -945,24 +888,16 @@
             const minAmount = parseFloat(document.getElementById('searchMinAmount').value) || 0;
             const maxAmount = parseFloat(document.getElementById('searchMaxAmount').value) || Infinity;
             const description = document.getElementById('searchDescription').value.toLowerCase();
-
             const searchResults = expenses.filter(expense => {
                 const expenseDate = new Date(expense.date);
                 let dateMatch = true;
-                if (fromDate) {
-                    dateMatch = dateMatch && expenseDate >= new Date(fromDate);
-                }
-                if (toDate) {
-                    dateMatch = dateMatch && expenseDate <= new Date(toDate);
-                }
-
+                if (fromDate) dateMatch = dateMatch && expenseDate >= new Date(fromDate);
+                if (toDate) dateMatch = dateMatch && expenseDate <= new Date(toDate);
                 const categoryMatch = !category || expense.category === category;
                 const amountMatch = expense.amount >= minAmount && expense.amount <= maxAmount;
                 const descriptionMatch = !description || expense.description.toLowerCase().includes(description);
-
                 return dateMatch && categoryMatch && amountMatch && descriptionMatch;
             });
-
             const resultsContainer = document.getElementById('searchResults');
             if (searchResults.length === 0) {
                  resultsContainer.innerHTML = '<p style="text-align: center; color: #666;">Không tìm thấy giao dịch nào phù hợp.</p>';
@@ -973,7 +908,6 @@
             showNotification(`🔍 Tìm thấy ${searchResults.length} giao dịch.`);
         }
 
-        // Xóa bộ lọc tìm kiếm
         function clearSearchFilters() {
             document.getElementById('searchFromDate').value = '';
             document.getElementById('searchToDate').value = '';
@@ -985,51 +919,30 @@
             showNotification('🗑️ Đã xóa bộ lọc tìm kiếm.');
         }
 
-        // --- Báo Cáo và Biểu Đồ ---
-
-        // Lọc giao dịch theo thời gian
         function filterByTimePeriod(period) {
             const now = new Date();
             let startDate = null;
-
             switch (period) {
-                case 'day':
-                    startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-                    break;
-                case 'week':
-                    startDate = new Date(now.setDate(now.getDate() - now.getDay()));
-                    break;
-                case 'month':
-                    startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-                    break;
-                case 'year':
-                    startDate = new Date(now.getFullYear(), 0, 1);
-                    break;
-                case 'all':
-                default:
-                    return expenses;
+                case 'day': startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate()); break;
+                case 'week': startDate = new Date(now.setDate(now.getDate() - now.getDay())); break;
+                case 'month': startDate = new Date(now.getFullYear(), now.getMonth(), 1); break;
+                case 'year': startDate = new Date(now.getFullYear(), 0, 1); break;
+                case 'all': default: return expenses;
             }
-
-            // Đảm bảo startDate được reset sau khi tính toán
             const startStr = startDate.toISOString().split('T')[0];
             return expenses.filter(exp => exp.date >= startStr);
         }
 
-        // Cập nhật thống kê tổng quan
         function updateStats(period, buttonElement) {
             currentPeriod = period;
             const filteredExpenses = filterByTimePeriod(period);
             const totalExpense = filteredExpenses.reduce((sum, exp) => sum + exp.amount, 0);
-            
-            // Cập nhật active button
             document.querySelectorAll('#reports .section:first-child .btn').forEach(btn => btn.classList.remove('btn-info'));
             if (buttonElement) {
                 buttonElement.classList.add('btn-info');
-            } else { // Mặc định chọn tháng
+            } else {
                  document.querySelectorAll('#reports .section:first-child .btn')[2].classList.add('btn-info');
             }
-
-            // Tính toán chi tiêu trung bình
             let numDays = 1;
             if (period === 'all' && filteredExpenses.length > 0) {
                 const minDate = new Date(Math.min(...filteredExpenses.map(e => new Date(e.date))));
@@ -1038,16 +951,12 @@
             } else if (period === 'week') {
                 numDays = 7;
             } else if (period === 'month') {
-                numDays = 30; // Giả định trung bình 30 ngày
+                numDays = 30;
             } else if (period === 'year') {
                 numDays = 365;
             }
             const avgDaily = numDays > 0 ? totalExpense / numDays : 0;
-            
-            const periodMap = {
-                'day': 'Hôm Nay', 'week': 'Tuần Này', 'month': 'Tháng Này', 'year': 'Năm Này', 'all': 'Tổng Cộng'
-            };
-
+            const periodMap = { 'day': 'Hôm Nay', 'week': 'Tuần Này', 'month': 'Tháng Này', 'year': 'Năm Này', 'all': 'Tổng Cộng' };
             const html = `
                 <div class="summary-card">
                     <p>Chi Tiêu ${periodMap[period]}</p>
@@ -1065,28 +974,27 @@
             document.getElementById('summaryCards').innerHTML = html;
         }
 
-        // Hiển thị biểu đồ
-        function showChart(chartType, buttonElement) {
+        function showChart(chartType, chartStyle, buttonElement) {
             currentChartType = chartType;
-            if (chart) {
-                chart.destroy();
-            }
-            
+            currentChartStyle = chartStyle;
+            if (chart) chart.destroy();
             const ctx = document.getElementById('expenseChart').getContext('2d');
             let data, options;
-
-             // Cập nhật active button
             document.querySelectorAll('#reports .section:last-child .btn').forEach(btn => btn.classList.remove('btn-info'));
             if (buttonElement) {
                 buttonElement.classList.add('btn-info');
-            } else { // Mặc định chọn theo danh mục
+            } else {
                  document.querySelectorAll('#reports .section:last-child .btn')[0].classList.add('btn-info');
             }
-
             switch (chartType) {
                 case 'category':
-                    ({ data, options } = getCategoryChartData());
-                    chart = new Chart(ctx, { type: 'pie', data: data, options: options });
+                    if (chartStyle === 'pie') {
+                        ({ data, options } = getCategoryChartData('pie'));
+                        chart = new Chart(ctx, { type: 'pie', data: data, options: options });
+                    } else {
+                        ({ data, options } = getCategoryChartData('bar'));
+                        chart = new Chart(ctx, { type: 'bar', data: data, options: options });
+                    }
                     break;
                 case 'monthly':
                     ({ data, options } = getMonthlyChartData());
@@ -1099,49 +1007,96 @@
             }
         }
         
-        // Lấy dữ liệu biểu đồ theo danh mục
-        function getCategoryChartData() {
+        function getCategoryChartData(chartStyle = 'pie') {
             const categoryTotals = expenses.reduce((acc, exp) => {
                 acc[exp.category] = (acc[exp.category] || 0) + exp.amount;
                 return acc;
             }, {});
-
             const labels = Object.keys(categoryTotals);
-            const data = Object.values(categoryTotals);
+            const dataValues = Object.values(categoryTotals);
+            const total = dataValues.reduce((sum, val) => sum + val, 0);
             const backgroundColors = labels.map((_, i) => `hsl(${i * 50}, 70%, 50%)`);
-
-            return {
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        data: data,
-                        backgroundColor: backgroundColors,
-                        hoverOffset: 4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { position: 'right' },
-                        title: { display: true, text: 'Phân Bổ Chi Tiêu Theo Danh Mục' }
+            
+            if (chartStyle === 'pie') {
+                return {
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            data: dataValues,
+                            backgroundColor: backgroundColors,
+                            hoverOffset: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'right' },
+                            title: { display: true, text: 'Phân Bổ Chi Tiêu Theo Danh Mục (Biểu Đồ Tròn)' },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const label = context.label || '';
+                                        const value = context.parsed || 0;
+                                        const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                                        return `${label}: ${formatMoney(value)} (${percentage}%)`;
+                                    }
+                                }
+                            }
+                        }
                     }
-                }
-            };
+                };
+            } else {
+                return {
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Chi Tiêu (VNĐ)',
+                            data: dataValues,
+                            backgroundColor: backgroundColors,
+                            borderColor: backgroundColors.map(color => color.replace('50%)', '40%)')),
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            title: { display: true, text: 'Phân Bổ Chi Tiêu Theo Danh Mục (Biểu Đồ Cột)' },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const value = context.parsed.y || 0;
+                                        const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                                        return `Chi tiêu: ${formatMoney(value)} (${percentage}%)`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: { 
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value) {
+                                        return formatMoney(value);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                };
+            }
         }
 
-        // Lấy dữ liệu biểu đồ theo tháng (12 tháng gần nhất)
         function getMonthlyChartData() {
             const monthlyTotals = {};
             const now = new Date();
-            
-            // Khởi tạo 12 tháng gần nhất
             for(let i = 11; i >= 0; i--) {
                 const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
                 const monthYear = `${d.getMonth() + 1}/${d.getFullYear()}`;
                 monthlyTotals[monthYear] = 0;
             }
-
             expenses.forEach(exp => {
                 const date = new Date(exp.date);
                 const monthYear = `${date.getMonth() + 1}/${date.getFullYear()}`;
@@ -1149,7 +1104,6 @@
                     monthlyTotals[monthYear] += exp.amount;
                 }
             });
-
             return {
                 data: {
                     labels: Object.keys(monthlyTotals),
@@ -1174,27 +1128,22 @@
             };
         }
         
-        // Lấy dữ liệu biểu đồ theo ngày (30 ngày gần nhất)
         function getDailyChartData() {
             const dailyTotals = {};
             const now = new Date();
-            
-            // Khởi tạo 30 ngày gần nhất
             for(let i = 29; i >= 0; i--) {
                 const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
                 const dateKey = d.toISOString().split('T')[0];
                 dailyTotals[dateKey] = 0;
             }
-
             expenses.forEach(exp => {
                 if (dailyTotals.hasOwnProperty(exp.date)) {
                     dailyTotals[exp.date] += exp.amount;
                 }
             });
-
             return {
                 data: {
-                    labels: Object.keys(dailyTotals).map(dateStr => formatDate(dateStr).slice(0, 5)), // Hiển thị DD/MM
+                    labels: Object.keys(dailyTotals).map(dateStr => formatDate(dateStr).slice(0, 5)),
                     datasets: [{
                         label: 'Chi Tiêu Hàng Ngày (VNĐ)',
                         data: Object.values(dailyTotals),
@@ -1216,37 +1165,24 @@
             };
         }
 
-
-        // --- Giới Hạn và Cảnh Báo ---
-
-        // Cập nhật tiến độ giới hạn
         function updateLimitProgress() {
             const today = new Date().toISOString().split('T')[0];
             const currentMonth = new Date().toISOString().slice(0, 7);
-
-            // 1. Giới hạn Hàng Ngày
             const dailySpent = expenses.filter(exp => exp.date === today).reduce((sum, exp) => sum + exp.amount, 0);
             updateProgressBar('daily', limits.daily, dailySpent);
-
-            // 2. Giới hạn Hàng Tháng
             const monthlySpent = expenses.filter(exp => exp.date.startsWith(currentMonth)).reduce((sum, exp) => sum + exp.amount, 0);
             updateProgressBar('monthly', limits.monthly, monthlySpent);
-
-            // 3. Giới hạn Theo Danh Mục
             renderCategoryLimits();
         }
 
-        // Cập nhật thanh tiến trình chung
         function updateProgressBar(prefix, limit, spent) {
             const progressFill = document.getElementById(`${prefix}Progress`);
             const statusText = document.getElementById(`${prefix}Status`);
             const percentage = limit > 0 ? Math.min(100, (spent / limit) * 100) : 0;
             const remaining = limit - spent;
-
             progressFill.style.width = `${percentage}%`;
             progressFill.textContent = `${Math.round(percentage)}%`;
             progressFill.className = 'progress-fill';
-
             if (percentage >= 100) {
                 progressFill.classList.add('progress-danger');
                 statusText.innerHTML = `⚠️ Đã Vượt Giới Hạn! ${formatMoney(spent - limit)} / ${formatMoney(limit)}`;
@@ -1262,11 +1198,9 @@
             }
         }
 
-        // Hiển thị/Cập nhật các ô giới hạn theo danh mục
         function renderCategoryLimits() {
             const container = document.getElementById('categoryLimits');
-            container.innerHTML = ''; // Xóa nội dung cũ
-
+            container.innerHTML = '';
             const currentMonth = new Date().toISOString().slice(0, 7);
             const monthlyCategorySpent = expenses
                 .filter(exp => exp.date.startsWith(currentMonth))
@@ -1274,40 +1208,31 @@
                     acc[exp.category] = (acc[exp.category] || 0) + exp.amount;
                     return acc;
                 }, {});
-
-            // Lấy danh sách các danh mục cần hiển thị (đã có giới hạn + tất cả các danh mục để thêm mới)
             const categoriesToDisplay = new Set(Object.keys(limits.categories));
             allCategories.forEach(cat => categoriesToDisplay.add(cat.value));
-
             categoriesToDisplay.forEach(category => {
                 const limitAmount = limits.categories[category] || 0;
                 const spentAmount = monthlyCategorySpent[category] || 0;
-
                 const progressHtml = limitAmount > 0 ? createCategoryProgressBar(limitAmount, spentAmount) : '';
                 const categoryLabel = allCategories.find(c => c.value === category)?.label || category;
-                
                 const item = document.createElement('div');
                 item.classList.add('category-limit-item');
                 item.dataset.category = category;
-
                 const categorySelect = document.createElement('select');
                 categorySelect.innerHTML = allCategories.map(c => 
                     `<option value="${c.value}" ${c.value === category ? 'selected' : ''}>${c.label}</option>`
                 ).join('');
-                categorySelect.disabled = limitAmount > 0; // Không cho đổi category nếu đã có giới hạn
-
+                categorySelect.disabled = limitAmount > 0;
                 const limitInput = document.createElement('input');
                 limitInput.type = 'number';
                 limitInput.min = '0';
                 limitInput.step = '10000';
                 limitInput.value = limitAmount || '';
                 limitInput.placeholder = 'Giới hạn tháng (VNĐ)';
-
                 const statusDiv = document.createElement('div');
                 statusDiv.classList.add('limit-status');
                 statusDiv.innerHTML = limitAmount > 0 ? `${formatMoney(spentAmount)} / ${formatMoney(limitAmount)}` : 'Chưa đặt giới hạn';
                 statusDiv.style.color = limitAmount > 0 && spentAmount > limitAmount * 0.75 ? '#dc3545' : '#28a745';
-
                 const deleteBtn = document.createElement('button');
                 deleteBtn.classList.add('btn', 'btn-danger', 'btn-small');
                 deleteBtn.textContent = '❌';
@@ -1316,8 +1241,6 @@
                     saveLimits();
                     renderCategoryLimits();
                 };
-                
-                // Thêm các thành phần vào item
                 item.appendChild(categorySelect);
                 item.appendChild(limitInput);
                 if (limitAmount > 0) {
@@ -1325,12 +1248,10 @@
                 }
                 item.appendChild(statusDiv);
                 item.appendChild(deleteBtn);
-
                 container.appendChild(item);
             });
         }
         
-        // Tạo thanh tiến trình cho danh mục
         function createCategoryProgressBar(limit, spent) {
             const percentage = limit > 0 ? Math.min(100, (spent / limit) * 100) : 0;
             let progressClass = 'progress-safe';
@@ -1339,7 +1260,6 @@
             } else if (percentage >= 75) {
                 progressClass = 'progress-warning';
             }
-
             return `
                 <div class="progress-bar">
                     <div class="progress-fill ${progressClass}" style="width: ${percentage}%;">
@@ -1349,172 +1269,162 @@
             `;
         }
 
-        // Thêm dòng giới hạn danh mục mới
         function addCategoryLimit() {
-            // Lấy các danh mục chưa được giới hạn
             const existingCategories = Object.keys(limits.categories);
             const availableCategories = allCategories.filter(c => !existingCategories.includes(c.value));
-
             if (availableCategories.length === 0) {
                 showNotification('Không còn danh mục nào để thêm giới hạn!', 'warning');
                 return;
             }
-
             const container = document.getElementById('categoryLimits');
             const newIndex = Date.now();
             const defaultCategory = availableCategories[0].value;
-            
-            // Thêm giới hạn mới vào limits để render lại
             limits.categories[defaultCategory] = 0;
             renderCategoryLimits();
         }
 
-        // Kiểm tra và hiển thị cảnh báo khi thêm giao dịch
         function checkLimitWarnings(newExpense) {
             const today = new Date().toISOString().split('T')[0];
             const currentMonth = new Date().toISOString().slice(0, 7);
-
             const dailySpent = expenses.filter(exp => exp.date === today).reduce((sum, exp) => sum + exp.amount, 0);
             const monthlySpent = expenses.filter(exp => exp.date.startsWith(currentMonth)).reduce((sum, exp) => sum + exp.amount, 0);
             const categorySpent = expenses.filter(exp => exp.date.startsWith(currentMonth) && exp.category === newExpense.category).reduce((sum, exp) => sum + exp.amount, 0);
-            
             const alertContainer = document.getElementById('alertContainer');
             alertContainer.innerHTML = '';
-
-            // Cảnh báo Hàng Ngày
             if (limits.daily > 0 && dailySpent > limits.daily) {
                 alertContainer.innerHTML += `<div class="alert alert-danger">⚠️ **Vượt Giới Hạn Ngày!** Đã chi ${formatMoney(dailySpent)} / ${formatMoney(limits.daily)}.</div>`;
             } else if (limits.daily > 0 && dailySpent > limits.daily * 0.9) {
                 alertContainer.innerHTML += `<div class="alert alert-warning">🔔 Sắp Vượt Giới Hạn Ngày! Đã chi ${formatMoney(dailySpent)}.</div>`;
             }
-
-            // Cảnh báo Hàng Tháng
             if (limits.monthly > 0 && monthlySpent > limits.monthly) {
                 alertContainer.innerHTML += `<div class="alert alert-danger">⚠️ **Vượt Giới Hạn Tháng!** Đã chi ${formatMoney(monthlySpent)} / ${formatMoney(limits.monthly)}.</div>`;
             }
-
-            // Cảnh báo Theo Danh Mục
             const categoryLimit = limits.categories[newExpense.category];
             if (categoryLimit > 0 && categorySpent > categoryLimit) {
                 alertContainer.innerHTML += `<div class="alert alert-danger">⚠️ **Vượt Giới Hạn Danh Mục** (${newExpense.category})! Đã chi ${formatMoney(categorySpent)} / ${formatMoney(categoryLimit)}.</div>`;
             }
         }
         
-        // --- Xuất/Nhập CSV ---
+      function exportToCSV() {
+    if (expenses.length === 0) {
+        showNotification('Không có dữ liệu để xuất!', 'warning');
+        return;
+    }
+    
+    const headers = ["Ngày", "Danh Mục", "Số Tiền", "Ghi Chú"];
+    let csvContent = headers.join(",") + "\r\n";
+    
+    expenses.forEach(expense => {
+        // GIỮ NGUYÊN định dạng YYYY-MM-DD, không thêm dấu = và không chuyển đổi
+        const dateFormatted = expense.date;
+        let row = [
+            dateFormatted, // Giữ nguyên định dạng YYYY-MM-DD
+            `"${expense.category}"`, // Thêm dấu ngoặc kép để tránh lỗi với dấu phẩy
+            expense.amount,
+            `"${expense.description}"` // Thêm dấu ngoặc kép
+        ].join(",");
+        csvContent += row + "\r\n";
+    });
+    
+    // Tạo Blob với encoding UTF-8 có BOM
+    const BOM = "\uFEFF";
+    const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+    
+    // Tạo link download
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", "quan_ly_chi_tieu.csv");
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    showNotification('💾 Đã xuất dữ liệu sang CSV với mã hóa UTF-8!');
+}
 
-        function exportToCSV() {
-            if (expenses.length === 0) {
-                showNotification('Không có dữ liệu để xuất!', 'warning');
-                return;
-            }
 
-            let csvContent = "data:text/csv;charset=utf-8,";
-            
-            // Headers
-            const headers = ["ID", "Ngày", "Danh Mục", "Số Tiền", "Ghi Chú"];
-            csvContent += headers.join(",") + "\r\n";
-            
-            // Rows
-            expenses.forEach(expense => {
-                let row = [
-                    expense.id,
-                    expense.date,
-                    `"${expense.category.replace(/"/g, '""')}"`, // Xử lý dấu nháy kép trong chuỗi
-                    expense.amount,
-                    `"${expense.description.replace(/"/g, '""')}"`
-                ].join(",");
-                csvContent += row + "\r\n";
-            });
-
-            const encodedUri = encodeURI(csvContent);
-            const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", "quan_ly_chi_tieu.csv");
-            document.body.appendChild(link); 
-            link.click();
-            document.body.removeChild(link);
-            
-            showNotification('💾 Đã xuất dữ liệu sang CSV!');
+       function importFromCSV(input) {
+    if (input.files.length === 0) return;
+    const file = input.files[0];
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const text = e.target.result;
+        const lines = text.split('\n').filter(line => line.trim() !== '');
+        if (lines.length < 2) {
+            showNotification('File CSV không hợp lệ (ít hơn 2 dòng).', 'danger');
+            return;
         }
-
-        function importFromCSV(input) {
-            if (input.files.length === 0) return;
-
-            const file = input.files[0];
-            const reader = new FileReader();
-
-            reader.onload = function(e) {
-                const text = e.target.result;
-                const lines = text.split('\n').filter(line => line.trim() !== '');
-                
-                if (lines.length < 2) {
-                    showNotification('File CSV không hợp lệ (ít hơn 2 dòng).', 'danger');
-                    return;
+        const importedExpenses = [];
+        for (let i = 1; i < lines.length; i++) {
+            // Sử dụng hàm parseCSVRow để xử lý CSV đúng cách
+            const row = parseCSVRow(lines[i]);
+            
+            if (row.length >= 3) {
+                const amount = parseFloat(row[2]);
+                if (!isNaN(amount) && amount >= 0) {
+                    // GIỮ NGUYÊN định dạng ngày tháng từ CSV (YYYY-MM-DD)
+                    let dateStr = row[0].trim();
+                    
+                    importedExpenses.push({
+                        id: Date.now() + i,
+                        date: dateStr, // Giữ nguyên định dạng
+                        category: row[1].trim(),
+                        amount: amount,
+                        description: row[3] ? row[3].trim() : ''
+                    });
                 }
-                
-                // Giả định dòng đầu tiên là header, bỏ qua
-                // const headers = lines[0].split(',');
-                
-                const importedExpenses = [];
-                for (let i = 1; i < lines.length; i++) {
-                    const row = parseCSVRow(lines[i]);
-                    if (row.length >= 4) {
-                        const amount = parseFloat(row[3]);
-                        if (!isNaN(amount) && amount >= 0) {
-                            importedExpenses.push({
-                                id: Date.now() + i, // Tạo ID mới để tránh trùng lặp
-                                date: row[1],
-                                category: row[2].trim(),
-                                amount: amount,
-                                description: row[4] ? row[4].trim() : ''
-                            });
-                        }
-                    }
-                }
-                
-                expenses = [...expenses, ...importedExpenses]; // Thêm vào dữ liệu hiện có
+            }
+        }
+        expenses = [...expenses, ...importedExpenses];
+        saveData();
+        updateTransactionList();
+        updateStats(currentPeriod);
+        updateLimitProgress();
+        showNotification(`📂 Đã nhập thành công ${importedExpenses.length} giao dịch!`);
+        input.value = '';
+    };
+    reader.readAsText(file, 'UTF-8');
+}
+       function parseCSVRow(text) {
+    const result = [];
+    let current = '';
+    let inQuotes = false;
+    
+    for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        
+        if (char === '"') {
+            if (inQuotes && text[i + 1] === '"') {
+                current += '"';
+                i++;
+            } else {
+                inQuotes = !inQuotes;
+            }
+        } else if (char === ',' && !inQuotes) {
+            result.push(current);
+            current = '';
+        } else if (char === '\r') {
+            // Bỏ qua ký tự \r
+        } else {
+            current += char;
+        }
+    }
+    
+    result.push(current);
+    return result.map(s => s.trim().replace(/^"|"$/g, ''));
+}
+        function deleteAllExpenses() {
+            if (confirm("⚠️ Bạn có chắc chắn muốn xóa TẤT CẢ giao dịch không?")) {
+                expenses = [];
                 saveData();
-                updateTransactionList();
+                updateTransactionList(); 
                 updateStats(currentPeriod);
                 updateLimitProgress();
-
-                showNotification(`📂 Đã nhập thành công ${importedExpenses.length} giao dịch!`);
-                input.value = ''; // Reset input file
-            };
-
-            reader.readAsText(file);
-        }
-
-        // Hàm helper để phân tích dòng CSV (hỗ trợ dấu nháy kép)
-        function parseCSVRow(text) {
-            const result = [];
-            let current = '';
-            let inQuotes = false;
-
-            for (let i = 0; i < text.length; i++) {
-                const char = text[i];
-                if (char === '"') {
-                    if (inQuotes && text[i + 1] === '"') {
-                        // Escaped double quote "" -> "
-                        current += '"';
-                        i++;
-                    } else {
-                        inQuotes = !inQuotes;
-                    }
-                } else if (char === ',' && !inQuotes) {
-                    result.push(current);
-                    current = '';
-                } else if (char === '\r') {
-                    // Bỏ qua ký tự carriage return
-                } else {
-                    current += char;
-                }
+                showNotification("🗑️ Đã xóa toàn bộ giao dịch!");
             }
-            result.push(current); // Thêm phần tử cuối cùng
-            return result.map(s => s.trim().replace(/^"|"$/g, '')); // Loại bỏ khoảng trắng và dấu ngoặc kép thừa
         }
-
     </script>
 </body>
 </html>
-
