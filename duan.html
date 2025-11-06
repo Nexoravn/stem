@@ -852,12 +852,11 @@
         }
 
         // Định dạng ngày - ĐÃ SỬA LỖI
-        function formatDate(dateString) {
-            if (!dateString) return '';
-            const [year, month, day] = dateString.split('-');
-            return `${day}/${month}/${year}`;
-        }
-
+       function formatDate(dateString) {
+    if (!dateString) return '';
+    const [year, month, day] = dateString.split('-');
+    return `${day}/${month}/${year}`; // Đã đúng, nhưng không cần padStart ở đây
+}
         // Chuyển đổi ngày từ dd/mm/yyyy sang yyyy-mm-dd
         function convertToISODate(dateString) {
             if (!dateString) return '';
@@ -1583,34 +1582,44 @@
         
         // --- CSV Import/Export - ĐÃ SỬA LỖI ĐỊNH DẠNG ---
         
-        function exportToCSV() {
-            const header = ["ID", "Ngày", "Danh Mục", "Số Tiền", "Ghi Chú"];
-            const rows = expenses.map(e => [
-                e.id,
-                e.date,
-                e.category,
-                e.amount,
-                `"${(e.description || '').replace(/"/g, '""')}"`
-            ]);
+        // --- CSV Import/Export - ÄÃƒ Sá»¬A Lá»–I HOÃN TOÃ€N ---
+        
+      // --- CSV Import/Export - ÄÃƒ Sá»¬A Lá»–I HOÃN TOÃ€N ---
+        
+  function exportToCSV() {
+    const header = ["Ngày", "Danh Mục", "Số Tiền", "Ghi Chú"];
+    const rows = expenses.map(e => [
+        `="${formatDateForCSV(e.date)}"`,  // ÉP TEXT BẰNG =
+        e.category,
+        e.amount,
+        `"${(e.description || '').replace(/"/g, '""')}"`
+    ]);
 
-            let csvContent = "\uFEFF" + header.join(",") + "\r\n"; // Thêm BOM cho UTF-8
-            rows.forEach(row => {
-                csvContent += row.join(",") + "\r\n";
-            });
+    let csvContent = "\uFEFF" + header.join(",") + "\r\n";
+    rows.forEach(row => {
+        csvContent += row.join(",") + "\r\n";
+    });
 
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement("a");
-            if (link.download !== undefined) {
-                const url = URL.createObjectURL(blob);
-                link.setAttribute("href", url);
-                link.setAttribute("download", "nhatkychitieu_" + new Date().toISOString().slice(0, 10) + ".csv");
-                link.style.visibility = 'hidden';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                showNotification('💾 Đã xuất file CSV thành công!');
-            }
-        }
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    if (link.download !== undefined) {
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", "nhatkychitieu_" + new Date().toISOString().slice(0, 10) + ".csv");
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        showNotification('Xuất CSV thành công! Ngày là TEXT → Không bao giờ bị ####');
+    }
+}
+function formatDateForCSV(dateString) {
+    if (!dateString) return '';
+    const [year, month, day] = dateString.split('-');
+    // Đảm bảo 2 chữ số cho ngày và tháng
+    return `${day.padStart(2, '0')}/${month.padStart(2, '0')}/${year}`;
+}
         
         function importFromCSV(input) {
             if (input.files && input.files[0]) {
@@ -1634,67 +1643,85 @@
             }
         }
         
-        function parseCSV(text) {
-            // Loại bỏ BOM nếu có
-            if (text.charCodeAt(0) === 0xFEFF) {
-                text = text.substring(1);
-            }
-            
-            const lines = text.split('\n').filter(line => line.trim() !== '');
-            if (lines.length < 2) return [];
-
-            const newExpenses = [];
-            
-            for (let i = 1; i < lines.length; i++) {
-                const values = parseCSVRow(lines[i]);
-                
-                if (values.length >= 4) {
-                    const [idStr, dateStr, category, amountStr, description = ''] = values;
-                    
-                    const amount = parseFloat(amountStr);
-                    const id = parseInt(idStr) || Date.now() + i;
-                    
-                    if (dateStr && category && !isNaN(amount) && amount >= 0) {
-                        newExpenses.push({
-                            id: id,
-                            date: dateStr,
-                            category: category,
-                            amount: amount,
-                            description: description.replace(/^"|"$/g, '')
-                        });
-                    }
-                }
-            }
-            return newExpenses;
-        }
-
         function parseCSVRow(text) {
-            const result = [];
-            let current = '';
-            let inQuotes = false;
+    const result = [];
+    let current = '';
+    let inQuotes = false;
 
-            for (let i = 0; i < text.length; i++) {
-                const char = text[i];
-                if (char === '"') {
-                    if (inQuotes && text[i + 1] === '"') {
-                        current += '"';
-                        i++;
-                    } else {
-                        inQuotes = !inQuotes;
-                    }
-                } else if (char === ',' && !inQuotes) {
-                    result.push(current);
-                    current = '';
-                } else if (char === '\r') {
-                    // Bỏ qua
-                } else {
-                    current += char;
-                }
+    for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        if (char === '"') {
+            if (inQuotes && text[i + 1] === '"') {
+                current += '"';
+                i++;
+            } else {
+                inQuotes = !inQuotes;
             }
+        } else if (char === ',' && !inQuotes) {
             result.push(current);
-            return result.map(s => s.trim());
+            current = '';
+        } else if (char === '\r') {
+            // ignore
+        } else {
+            current += char;
+        }
+    }
+    result.push(current);
+    return result.map(s => s.trim());
+}
+
+function parseCSV(text) {
+    if (text.charCodeAt(0) === 0xFEFF) text = text.substring(1);
+    
+    const lines = text.split('\n').filter(line => line.trim() !== '');
+    if (lines.length < 2) return [];
+
+    const newExpenses = [];
+    
+    for (let i = 1; i < lines.length; i++) {
+        const values = parseCSVRow(lines[i]);
+        if (values.length < 3) continue;
+
+        let [dateRaw, category, amountStr, description = ''] = values;
+
+        // LOẠI BỎ = VÀ DẤU NHÁY Ở ĐẦU/ CUỐI
+        dateRaw = dateRaw.replace(/^=?|"$/g, '').trim();
+        category = category.replace(/^"|"$/g, '').trim();
+        description = (description || '').replace(/^"|"$/g, '').trim();
+
+        const amount = parseFloat(amountStr);
+        if (isNaN(amount) || amount < 0 || !category) continue;
+
+        const date = normalizeDateFromDMY(dateRaw);
+        if (!date) {
+            console.warn("Ngày không hợp lệ:", dateRaw);
+            continue;
         }
 
+        newExpenses.push({
+            id: Date.now() + i,
+            date: date,
+            category: category,
+            amount: amount,
+            description: description
+        });
+    }
+    return newExpenses;
+}
+function normalizeDateFromDMY(dateStr) {
+    if (!dateStr) return null;
+
+    // Loại bỏ = và dấu nháy (nếu còn sót)
+    const clean = dateStr.replace(/^=?|"/g, '').trim();
+
+    const match = clean.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+    if (!match) return null;
+
+    let [_, d, m, y] = match.map(Number);
+    if (d > 31 || m > 12 || y < 1900 || y > 2100) return null;
+
+    return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+}
         // --- AI Chat Feature với DeepSeek API ---
 
         // Gửi câu hỏi và hiển thị kết quả
