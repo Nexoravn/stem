@@ -1758,9 +1758,8 @@ Bạn là trợ lý chi tiêu vui tính, thân thiện.
 Nếu câu hỏi liên quan đến tiền bạc, hãy trả lời chi tiết, phân tích số liệu.
 Nếu không liên quan, hãy phản hồi ngắn gọn, tự nhiên, như đang trò chuyện.
 
-Câu hỏi: "${query}"`;
-
-Trả lời ngắn gọn, tiếng Việt, có emoji, đưa lời khuyên tiết kiệm nếu cần.`;
+Câu hỏi: "${query}"
+Trả lời ngắn gọn, tiếng Việt, có emoji, đưa lời khuyên tiết kiệm nếu được yêu cầu.`;
 
             try {
                 const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
