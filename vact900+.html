@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Course Viewer</title>
+
+<style>
+body{
+    font-family: Arial;
+    padding:20px;
+}
+
+.chapter-title{
+    cursor:pointer;
+    background:#f0f0f0;
+    padding:10px;
+    margin-top:20px;
+    border-radius:6px;
+}
+
+.lesson-title{
+    cursor:pointer;
+    margin-left:20px;
+    margin-top:10px;
+    background:#fafafa;
+    padding:8px;
+    border-radius:6px;
+}
+
+.resources{
+    margin-left:40px;
+    display:none;
+}
+
+.lessons{
+    display:none;
+}
+
+a{
+    text-decoration:none;
+    color:blue;
+}
+
+.resource{
+    margin-top:5px;
+}
+</style>
+</head>
+
+<body>
+
+<h2>Khóa học</h2>
+<div id="course"></div>
+
+<script>
+
+const API = "https://api.empire.io.vn/api/v1/";
+const FILE = API + "files/";
+const courseSlug = "30-ngay-chinh-phuc-900-v-act--1772360812935";
+
+fetch(API + "courses/slug/" + courseSlug, { cache:"no-store" })
+.then(res => res.json())
+.then(data => {
+
+    const container = document.getElementById("course");
+
+    data.course.chapters.forEach(chapter => {
+
+        // CHAPTER
+        const chapterTitle = document.createElement("div");
+        chapterTitle.className = "chapter-title";
+        chapterTitle.innerText = "📘 " + chapter.title;
+
+        const lessonsDiv = document.createElement("div");
+        lessonsDiv.className = "lessons";
+
+        chapterTitle.onclick = () => {
+            lessonsDiv.style.display =
+                lessonsDiv.style.display === "none" ? "block" : "none";
+        };
+
+        container.appendChild(chapterTitle);
+        container.appendChild(lessonsDiv);
+
+        // LESSONS
+        chapter.lessons.forEach(lw => {
+
+            const lesson = lw.lesson;
+
+            const lessonTitle = document.createElement("div");
+            lessonTitle.className = "lesson-title";
+            lessonTitle.innerText = "📖 " + lesson.title;
+
+            const resourcesDiv = document.createElement("div");
+            resourcesDiv.className = "resources";
+
+            lessonTitle.onclick = () => {
+                resourcesDiv.style.display =
+                    resourcesDiv.style.display === "none" ? "block" : "none";
+            };
+
+            lessonsDiv.appendChild(lessonTitle);
+            lessonsDiv.appendChild(resourcesDiv);
+
+            // RESOURCES
+            lesson.resources.forEach(rw => {
+
+                const res = rw.resource;
+                if(!res) return;
+
+                const fileUrl = FILE + res.fileUrl;
+
+                const resourceItem = document.createElement("div");
+                resourceItem.className = "resource";
+
+                if(res.type === "video"){
+                    resourceItem.innerHTML =
+                        `🎥 <a href="${fileUrl}" target="_blank">${res.title}</a>`;
+                } else {
+                    resourceItem.innerHTML =
+                        `📄 <a href="${fileUrl}" target="_blank">${res.title}</a>`;
+                }
+
+                resourcesDiv.appendChild(resourceItem);
+
+            });
+
+        });
+
+    });
+
+});
+</script>
+
+</body>
+</html>
