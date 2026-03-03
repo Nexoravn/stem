@@ -10,6 +10,10 @@ body{
     padding:20px;
 }
 
+input, button{
+    font-size:16px;
+}
+
 .chapter-title{
     cursor:pointer;
     background:#f0f0f0;
@@ -45,91 +49,132 @@ a{
     margin-top:5px;
 }
 </style>
+
 </head>
 
 <body>
 
-<h2>Khóa học</h2>
+<h2>Khóa học Empire Viewer</h2>
+
+<input type="text" id="courseLink" 
+    placeholder="Dán link khóa học Empire vào đây..."
+    style="width:500px;padding:8px;border-radius:6px;border:1px solid #ccc;">
+
+<button onclick="loadCourse()" 
+    style="padding:8px 12px;border-radius:6px;cursor:pointer;">
+    Load
+</button>
+
 <div id="course"></div>
 
 <script>
 
 const API = "https://api.empire.io.vn/api/v1/";
 const FILE = API + "files/";
-const courseSlug = "30-ngay-chinh-phuc-900-v-act--1772360812935";
 
-fetch(API + "courses/slug/" + courseSlug, { cache:"no-store" })
-.then(res => res.json())
-.then(data => {
+// Hàm lấy slug từ link
+function extractSlug(url){
+    try{
+        const u = new URL(url);
+        const parts = u.pathname.split("/").filter(Boolean);
+        return parts.pop(); // lấy phần cuối cùng
+    }catch{
+        return url.trim(); // nếu chỉ paste slug
+    }
+}
 
-    const container = document.getElementById("course");
+function loadCourse(){
 
-    data.course.chapters.forEach(chapter => {
+    const input = document.getElementById("courseLink").value;
+    const courseSlug = extractSlug(input);
 
-        // CHAPTER
-        const chapterTitle = document.createElement("div");
-        chapterTitle.className = "chapter-title";
-        chapterTitle.innerText = "📘 " + chapter.title;
+    if(!courseSlug){
+        alert("Nhập link hoặc slug hợp lệ!");
+        return;
+    }
 
-        const lessonsDiv = document.createElement("div");
-        lessonsDiv.className = "lessons";
+    document.getElementById("course").innerHTML = "Đang tải...";
 
-        chapterTitle.onclick = () => {
-            lessonsDiv.style.display =
-                lessonsDiv.style.display === "none" ? "block" : "none";
-        };
+    fetch(API + "courses/slug/" + courseSlug, { cache:"no-store" })
+    .then(res => res.json())
+    .then(data => {
 
-        container.appendChild(chapterTitle);
-        container.appendChild(lessonsDiv);
+        const container = document.getElementById("course");
+        container.innerHTML = ""; // xóa cũ
 
-        // LESSONS
-        chapter.lessons.forEach(lw => {
+        if(!data.course){
+            container.innerText = "Không có dữ liệu khóa học!";
+            return;
+        }
 
-            const lesson = lw.lesson;
+        data.course.chapters.forEach(chapter => {
 
-            const lessonTitle = document.createElement("div");
-            lessonTitle.className = "lesson-title";
-            lessonTitle.innerText = "📖 " + lesson.title;
+            const chapterTitle = document.createElement("div");
+            chapterTitle.className = "chapter-title";
+            chapterTitle.innerText = "📘 " + chapter.title;
 
-            const resourcesDiv = document.createElement("div");
-            resourcesDiv.className = "resources";
+            const lessonsDiv = document.createElement("div");
+            lessonsDiv.className = "lessons";
+            lessonsDiv.style.display = "none";
 
-            lessonTitle.onclick = () => {
-                resourcesDiv.style.display =
-                    resourcesDiv.style.display === "none" ? "block" : "none";
+            chapterTitle.onclick = () => {
+                lessonsDiv.style.display =
+                    lessonsDiv.style.display === "none" ? "block" : "none";
             };
 
-            lessonsDiv.appendChild(lessonTitle);
-            lessonsDiv.appendChild(resourcesDiv);
+            container.appendChild(chapterTitle);
+            container.appendChild(lessonsDiv);
 
-            // RESOURCES
-            lesson.resources.forEach(rw => {
+            chapter.lessons.forEach(lw => {
 
-                const res = rw.resource;
-                if(!res) return;
+                const lesson = lw.lesson;
 
-                const fileUrl = FILE + res.fileUrl;
+                const lessonTitle = document.createElement("div");
+                lessonTitle.className = "lesson-title";
+                lessonTitle.innerText = "📖 " + lesson.title;
 
-                const resourceItem = document.createElement("div");
-                resourceItem.className = "resource";
+                const resourcesDiv = document.createElement("div");
+                resourcesDiv.className = "resources";
+                resourcesDiv.style.display = "none";
 
-                if(res.type === "video"){
-                    resourceItem.innerHTML =
-                        `🎥 <a href="${fileUrl}" target="_blank">${res.title}</a>`;
-                } else {
-                    resourceItem.innerHTML =
-                        `📄 <a href="${fileUrl}" target="_blank">${res.title}</a>`;
-                }
+                lessonTitle.onclick = () => {
+                    resourcesDiv.style.display =
+                        resourcesDiv.style.display === "none" ? "block" : "none";
+                };
 
-                resourcesDiv.appendChild(resourceItem);
+                lessonsDiv.appendChild(lessonTitle);
+                lessonsDiv.appendChild(resourcesDiv);
 
+                lesson.resources.forEach(rw => {
+
+                    const res = rw.resource;
+                    if(!res) return;
+
+                    const fileUrl = FILE + res.fileUrl;
+
+                    const resourceItem = document.createElement("div");
+                    resourceItem.className = "resource";
+
+                    if(res.type === "video"){
+                        resourceItem.innerHTML =
+                            `🎥 <a href="${fileUrl}" target="_blank">${res.title}</a>`;
+                    } else {
+                        resourceItem.innerHTML =
+                            `📄 <a href="${fileUrl}" target="_blank">${res.title}</a>`;
+                    }
+
+                    resourcesDiv.appendChild(resourceItem);
+                });
             });
-
         });
 
+    })
+    .catch(err => {
+        console.error(err);
+        document.getElementById("course").innerText = "Lỗi khi lấy dữ liệu!";
     });
+}
 
-});
 </script>
 
 </body>
