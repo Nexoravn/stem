@@ -2,177 +2,165 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Course Viewer</title>
+<title>Auto Load All Courses (Collapsible)</title>
 
 <style>
 body{
-    font-family: Arial;
+    font-family:Arial;
     padding:20px;
 }
 
-input, button{
-    font-size:16px;
+button{
+    padding:8px 12px;
+    cursor:pointer;
+    margin-bottom:15px;
 }
 
-.chapter-title{
+.course, .chapter, .lesson{
     cursor:pointer;
     background:#f0f0f0;
-    padding:10px;
-    margin-top:20px;
+    padding:8px;
+    margin-top:8px;
     border-radius:6px;
 }
 
-.lesson-title{
-    cursor:pointer;
-    margin-left:20px;
-    margin-top:10px;
-    background:#fafafa;
-    padding:8px;
-    border-radius:6px;
-}
+.chapter{ margin-left:20px; background:#fafafa; }
+.lesson{ margin-left:40px; background:#fff; }
 
 .resources{
-    margin-left:40px;
+    margin-left:60px;
     display:none;
 }
 
-.lessons{
+.children{
     display:none;
 }
-
 a{
     text-decoration:none;
     color:blue;
 }
-
-.resource{
-    margin-top:5px;
-}
 </style>
-
 </head>
-
 <body>
 
-<h2>Khóa học Empire Viewer</h2>
+<h2>Auto Load All Courses</h2>
+<button onclick="loadAll()">Nhấn để lấy khóa học</button>
 
-<input type="text" id="courseLink" 
-    placeholder="Dán link khóa học Empire vào đây..."
-    style="width:500px;padding:8px;border-radius:6px;border:1px solid #ccc;">
-
-<button onclick="loadCourse()" 
-    style="padding:8px 12px;border-radius:6px;cursor:pointer;">
-    Load
-</button>
-
-<div id="course"></div>
+<div id="content"></div>
 
 <script>
 
 const API = "https://api.empire.io.vn/api/v1/";
 const FILE = API + "files/";
 
-// Hàm lấy slug từ link
-function extractSlug(url){
-    try{
-        const u = new URL(url);
-        const parts = u.pathname.split("/").filter(Boolean);
-        return parts.pop(); // lấy phần cuối cùng
-    }catch{
-        return url.trim(); // nếu chỉ paste slug
-    }
+function toggle(el){
+    el.style.display = el.style.display === "none" ? "block" : "none";
 }
 
-function loadCourse(){
+async function loadAll(){
 
-    const input = document.getElementById("courseLink").value;
-    const courseSlug = extractSlug(input);
+    const container = document.getElementById("content");
+    container.innerHTML = "Đang tải...";
+    
+    let page = 1;
+    let hasMore = true;
+    container.innerHTML = "";
 
-    if(!courseSlug){
-        alert("Nhập link hoặc slug hợp lệ!");
-        return;
+    while(hasMore){
+
+        try{
+            const res = await fetch(API + "courses?page=" + page);
+            const data = await res.json();
+
+            if(!data.courses || data.courses.length === 0){
+                hasMore = false;
+                break;
+            }
+
+            for(const course of data.courses){
+
+                const courseDiv = document.createElement("div");
+                courseDiv.className = "course";
+                courseDiv.innerText = "📚 " + course.title;
+
+                const courseChildren = document.createElement("div");
+                courseChildren.className = "children";
+
+                courseDiv.onclick = () => toggle(courseChildren);
+
+                container.appendChild(courseDiv);
+                container.appendChild(courseChildren);
+
+                const detailRes = await fetch(API + "courses/slug/" + course.slug);
+                const detailData = await detailRes.json();
+
+                detailData.course.chapters.forEach(chapter=>{
+
+                    const chapDiv = document.createElement("div");
+                    chapDiv.className = "chapter";
+                    chapDiv.innerText = "📘 " + chapter.title;
+
+                    const chapChildren = document.createElement("div");
+                    chapChildren.className = "children";
+
+                    chapDiv.onclick = (e)=>{
+                        e.stopPropagation();
+                        toggle(chapChildren);
+                    };
+
+                    courseChildren.appendChild(chapDiv);
+                    courseChildren.appendChild(chapChildren);
+
+                    chapter.lessons.forEach(lw=>{
+
+                        const lesson = lw.lesson;
+
+                        const lessonDiv = document.createElement("div");
+                        lessonDiv.className = "lesson";
+                        lessonDiv.innerText = "📖 " + lesson.title;
+
+                        const resDiv = document.createElement("div");
+                        resDiv.className = "resources";
+
+                        lessonDiv.onclick = (e)=>{
+                            e.stopPropagation();
+                            toggle(resDiv);
+                        };
+
+                        chapChildren.appendChild(lessonDiv);
+                        chapChildren.appendChild(resDiv);
+
+                        lesson.resources.forEach(rw=>{
+                            const res = rw.resource;
+                            if(!res) return;
+
+                            const link = document.createElement("a");
+                            link.href = FILE + res.fileUrl;
+                            link.target = "_blank";
+                            link.innerText =
+                                (res.type === "video" ? "🎥 " : "📄 ") + res.title;
+
+                            const wrap = document.createElement("div");
+                            wrap.style.marginTop = "5px";
+                            wrap.appendChild(link);
+
+                            resDiv.appendChild(wrap);
+                        });
+
+                    });
+
+                });
+
+            }
+
+            page++;
+
+        }catch(e){
+            hasMore = false;
+        }
     }
 
-    document.getElementById("course").innerHTML = "Đang tải...";
-
-    fetch(API + "courses/slug/" + courseSlug, { cache:"no-store" })
-    .then(res => res.json())
-    .then(data => {
-
-        const container = document.getElementById("course");
-        container.innerHTML = ""; // xóa cũ
-
-        if(!data.course){
-            container.innerText = "Không có dữ liệu khóa học!";
-            return;
-        }
-
-        data.course.chapters.forEach(chapter => {
-
-            const chapterTitle = document.createElement("div");
-            chapterTitle.className = "chapter-title";
-            chapterTitle.innerText = "📘 " + chapter.title;
-
-            const lessonsDiv = document.createElement("div");
-            lessonsDiv.className = "lessons";
-            lessonsDiv.style.display = "none";
-
-            chapterTitle.onclick = () => {
-                lessonsDiv.style.display =
-                    lessonsDiv.style.display === "none" ? "block" : "none";
-            };
-
-            container.appendChild(chapterTitle);
-            container.appendChild(lessonsDiv);
-
-            chapter.lessons.forEach(lw => {
-
-                const lesson = lw.lesson;
-
-                const lessonTitle = document.createElement("div");
-                lessonTitle.className = "lesson-title";
-                lessonTitle.innerText = "📖 " + lesson.title;
-
-                const resourcesDiv = document.createElement("div");
-                resourcesDiv.className = "resources";
-                resourcesDiv.style.display = "none";
-
-                lessonTitle.onclick = () => {
-                    resourcesDiv.style.display =
-                        resourcesDiv.style.display === "none" ? "block" : "none";
-                };
-
-                lessonsDiv.appendChild(lessonTitle);
-                lessonsDiv.appendChild(resourcesDiv);
-
-                lesson.resources.forEach(rw => {
-
-                    const res = rw.resource;
-                    if(!res) return;
-
-                    const fileUrl = FILE + res.fileUrl;
-
-                    const resourceItem = document.createElement("div");
-                    resourceItem.className = "resource";
-
-                    if(res.type === "video"){
-                        resourceItem.innerHTML =
-                            `🎥 <a href="${fileUrl}" target="_blank">${res.title}</a>`;
-                    } else {
-                        resourceItem.innerHTML =
-                            `📄 <a href="${fileUrl}" target="_blank">${res.title}</a>`;
-                    }
-
-                    resourcesDiv.appendChild(resourceItem);
-                });
-            });
-        });
-
-    })
-    .catch(err => {
-        console.error(err);
-        document.getElementById("course").innerText = "Lỗi khi lấy dữ liệu!";
-    });
+    alert("Load xong toàn bộ khóa!");
 }
 
 </script>
