@@ -1,169 +1,728 @@
 <!DOCTYPE html>
-<html>
+<html lang="vi">
 <head>
 <meta charset="UTF-8">
-<title>Auto Load All Courses (Collapsible)</title>
-
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Empire Learning</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
-body{
-    font-family:Arial;
-    padding:20px;
+:root{
+  --bg:#0a0a0f;--surface:#13131a;--surface2:#1c1c27;--surface3:#22222f;
+  --border:rgba(255,255,255,0.07);--accent:#7c6dfa;--accent2:#fa6d8e;
+  --accent3:#6dfacc;--text:#e8e8f0;--muted:#6b6b80;--glow:rgba(124,109,250,0.15);
 }
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background:
+  radial-gradient(ellipse 80% 50% at 20% -10%,rgba(124,109,250,0.12) 0%,transparent 60%),
+  radial-gradient(ellipse 60% 40% at 80% 110%,rgba(250,109,142,0.08) 0%,transparent 60%);
+  pointer-events:none;z-index:0}
+.wrapper{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:0 24px 80px}
 
-button{
-    padding:8px 12px;
-    cursor:pointer;
-    margin-bottom:15px;
-}
+/* HEADER */
+header{padding:48px 0 36px;display:flex;flex-direction:column;gap:6px}
+.logo-row{display:flex;align-items:center;gap:12px;margin-bottom:4px}
+.logo-icon{width:38px;height:38px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px}
+.logo-text{font-family:'Syne',sans-serif;font-weight:800;font-size:22px;letter-spacing:-0.5px;background:linear-gradient(90deg,#fff 40%,var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+h1{font-family:'Syne',sans-serif;font-size:clamp(30px,5.5vw,52px);font-weight:800;line-height:1.06;letter-spacing:-2px}
+h1 span{background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.subtitle{color:var(--muted);font-size:15px;font-weight:300;margin-top:8px}
 
-.course, .chapter, .lesson{
-    cursor:pointer;
-    background:#f0f0f0;
-    padding:8px;
-    margin-top:8px;
-    border-radius:6px;
-}
+/* TOOLBAR */
+.toolbar{display:flex;gap:12px;margin-bottom:28px;flex-wrap:wrap;align-items:center}
+.search-wrap{flex:1;min-width:220px;position:relative}
+.search-wrap svg{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none}
+#searchInput{width:100%;padding:12px 16px 12px 42px;background:var(--surface);border:1px solid var(--border);border-radius:12px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;outline:none;transition:border-color .2s,box-shadow .2s}
+#searchInput:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--glow)}
+#searchInput::placeholder{color:var(--muted)}
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px;align-items:center}
+.filter-label{font-size:12px;color:var(--muted);font-weight:500;text-transform:uppercase;letter-spacing:.8px}
+.chip{padding:6px 14px;border-radius:100px;border:1px solid var(--border);background:var(--surface);color:var(--muted);font-size:13px;cursor:pointer;transition:all .2s;font-family:'DM Sans',sans-serif}
+.chip:hover,.chip.active{border-color:var(--accent);color:var(--accent);background:var(--glow)}
+#loadBtn{padding:12px 24px;background:linear-gradient(135deg,var(--accent),#9d88ff);border:none;border-radius:12px;color:#fff;font-family:'Syne',sans-serif;font-weight:700;font-size:14px;cursor:pointer;transition:all .2s;white-space:nowrap;box-shadow:0 4px 24px rgba(124,109,250,0.35)}
+#loadBtn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 8px 32px rgba(124,109,250,0.45)}
+#loadBtn:disabled{opacity:.5;cursor:default}
 
-.chapter{ margin-left:20px; background:#fafafa; }
-.lesson{ margin-left:40px; background:#fff; }
+/* STATS */
+.stats{display:flex;gap:24px;margin-bottom:28px;flex-wrap:wrap}
+.stat{display:flex;flex-direction:column;gap:2px}
+.stat-val{font-family:'Syne',sans-serif;font-size:22px;font-weight:700}
+.stat-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px}
 
-.resources{
-    margin-left:60px;
-    display:none;
-}
+/* PROGRESS BAR */
+#progressWrap{display:none;margin-bottom:20px}
+.progress-label{font-size:12px;color:var(--muted);margin-bottom:6px}
+.pbar{height:4px;background:var(--surface2);border-radius:4px;overflow:hidden}
+.pbar-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:4px;transition:width .3s;width:0%}
 
-.children{
-    display:none;
+/* COURSE CARDS */
+#content{display:flex;flex-direction:column;gap:12px}
+.course-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden;transition:border-color .2s;animation:fadeUp .35s ease both}
+.course-card:hover{border-color:rgba(124,109,250,0.3)}
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+.course-header{display:flex;align-items:center;gap:14px;padding:16px 18px;cursor:pointer;user-select:none;transition:background .2s}
+.course-header:hover{background:rgba(255,255,255,0.025)}
+.course-icon{width:42px;height:42px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0}
+.course-info{flex:1;min-width:0}
+.course-title{font-family:'Syne',sans-serif;font-weight:700;font-size:14px;line-height:1.3;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.course-meta{font-size:12px;color:var(--muted)}
+.chevron{transition:transform .25s;color:var(--muted);flex-shrink:0}
+.chevron.open{transform:rotate(180deg)}
+.chapters-wrap{display:none}
+.chapter-item{border-top:1px solid var(--border)}
+.chapter-header{display:flex;align-items:center;gap:11px;padding:12px 18px 12px 26px;cursor:pointer;user-select:none;transition:background .15s}
+.chapter-header:hover{background:rgba(255,255,255,0.015)}
+.chapter-num{width:22px;height:22px;border-radius:7px;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--accent);flex-shrink:0}
+.chapter-title{flex:1;font-size:13px;font-weight:500;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chapter-badge{font-size:10px;color:var(--muted);background:var(--surface2);padding:2px 7px;border-radius:100px;flex-shrink:0}
+.lessons-wrap{display:none}
+.lesson-item{display:flex;align-items:center;gap:10px;padding:9px 18px 9px 48px;cursor:pointer;transition:background .15s;border-top:1px solid rgba(255,255,255,0.03)}
+.lesson-item:hover{background:rgba(255,255,255,0.015)}
+.lesson-dot{width:7px;height:7px;border-radius:50%;background:var(--border);flex-shrink:0;transition:background .2s}
+.lesson-item:hover .lesson-dot,.lesson-item.open .lesson-dot{background:var(--accent3)}
+.lesson-name{flex:1;font-size:13px;color:#c0c0d0;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.res-count{font-size:11px;color:var(--muted);flex-shrink:0}
+.lesson-chevron{transition:transform .2s;color:var(--muted);flex-shrink:0}
+.lesson-item.open .lesson-chevron{transform:rotate(180deg)}
+.resources-wrap{display:none;padding:5px 18px 10px 62px;background:rgba(0,0,0,0.12);gap:5px;flex-direction:column}
+.res-link{display:flex;align-items:center;gap:9px;padding:8px 13px;background:var(--surface2);border:1px solid var(--border);border-radius:9px;text-decoration:none;color:var(--text);font-size:13px;transition:all .18s}
+.res-link:hover{border-color:var(--accent);background:var(--glow);color:var(--accent);transform:translateX(4px)}
+.res-type{font-size:10px;padding:2px 6px;border-radius:5px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;flex-shrink:0}
+.res-type.video{background:rgba(250,109,142,0.15);color:var(--accent2)}
+.res-type.doc{background:rgba(109,250,204,0.12);color:var(--accent3)}
+.empty{text-align:center;padding:60px 20px;color:var(--muted);font-size:14px}
+.empty-icon{font-size:40px;margin-bottom:12px}
+.expand-btn{padding:8px 15px;background:var(--surface);border:1px solid var(--border);border-radius:9px;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer;transition:all .2s}
+.expand-btn:hover{border-color:var(--accent);color:var(--accent)}
+.hidden{display:none!important}
+
+/* ── ZIP DOWNLOAD BUTTON ── */
+.zip-btn{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:6px 13px;border-radius:8px;border:none;
+  background:rgba(109,250,204,0.1);color:var(--accent3);
+  font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;
+  cursor:pointer;transition:all .2s;flex-shrink:0;white-space:nowrap;
 }
-a{
-    text-decoration:none;
-    color:blue;
+.zip-btn:hover:not(:disabled){background:rgba(109,250,204,0.2);box-shadow:0 3px 12px rgba(109,250,204,0.18);transform:translateY(-1px)}
+.zip-btn:disabled{opacity:.35;cursor:default;transform:none}
+
+/* ── ZIP MODAL ── */
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,0.82);backdrop-filter:blur(8px);
+  z-index:400;display:flex;align-items:center;justify-content:center;
+  opacity:0;pointer-events:none;transition:opacity .22s;
 }
+.modal-overlay.show{opacity:1;pointer-events:all}
+.modal{
+  background:var(--surface);border:1px solid rgba(255,255,255,0.1);
+  border-radius:22px;width:min(560px,94vw);max-height:90vh;
+  display:flex;flex-direction:column;overflow:hidden;
+  box-shadow:0 48px 120px rgba(0,0,0,0.75);
+  transform:scale(.95) translateY(12px);transition:transform .28s cubic-bezier(.34,1.3,.64,1);
+}
+.modal-overlay.show .modal{transform:scale(1) translateY(0)}
+
+.modal-top{padding:26px 26px 20px;border-bottom:1px solid var(--border)}
+.modal-toprow{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:4px}
+.modal-title{font-family:'Syne',sans-serif;font-size:17px;font-weight:800;line-height:1.25}
+.modal-x{background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;line-height:1;padding:2px 4px;transition:color .15s;border-radius:6px}
+.modal-x:hover{color:var(--text);background:var(--surface2)}
+.modal-sub{font-size:13px;color:var(--muted)}
+
+/* Structure preview */
+.modal-tree{flex:1;overflow-y:auto;padding:16px 24px;font-size:12px;font-family:'DM Sans',monospace;line-height:1.7;color:var(--muted);background:var(--bg);border-bottom:1px solid var(--border)}
+.modal-tree::-webkit-scrollbar{width:4px}
+.modal-tree::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+.tree-course{color:var(--accent);font-weight:700;font-size:13px}
+.tree-chapter{color:var(--text);padding-left:16px}
+.tree-lesson{color:#a0a0b8;padding-left:32px}
+.tree-file{color:var(--muted);padding-left:48px;display:flex;align-items:center;gap:6px}
+.tree-file-badge{font-size:9px;padding:1px 5px;border-radius:4px;font-weight:700;text-transform:uppercase;flex-shrink:0}
+.tree-file-badge.pdf{background:rgba(250,109,142,0.15);color:var(--accent2)}
+.tree-file-badge.doc{background:rgba(109,250,204,0.1);color:var(--accent3)}
+
+/* Progress area */
+.modal-progress{padding:18px 24px;border-bottom:1px solid var(--border);display:none;flex-direction:column;gap:10px}
+.prog-status{font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prog-sub{font-size:11px;color:var(--muted)}
+.prog-bar-wrap{display:flex;align-items:center;gap:12px}
+.prog-bar{flex:1;height:6px;background:var(--surface2);border-radius:6px;overflow:hidden}
+.prog-fill{height:100%;background:linear-gradient(90deg,var(--accent3),var(--accent));border-radius:6px;transition:width .3s;width:0%}
+.prog-pct{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:var(--accent3);min-width:36px;text-align:right}
+
+/* Phase indicator */
+.phases{display:flex;gap:8px;flex-wrap:wrap}
+.phase{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);padding:5px 10px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);transition:all .2s}
+.phase.active{border-color:var(--accent);color:var(--accent);background:var(--glow)}
+.phase.done{border-color:rgba(109,250,204,0.3);color:var(--accent3);background:rgba(109,250,204,0.08)}
+.phase-dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+
+/* Modal footer */
+.modal-footer{padding:16px 24px;display:flex;align-items:center;gap:10px}
+.modal-note{flex:1;font-size:11px;color:var(--muted);line-height:1.5}
+.btn-close{padding:10px 18px;border-radius:10px;background:var(--surface2);border:1px solid var(--border);color:var(--muted);font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;transition:all .2s}
+.btn-close:hover{border-color:var(--accent2);color:var(--accent2)}
+.btn-start{padding:10px 24px;border-radius:10px;background:linear-gradient(135deg,var(--accent3),#3ecf96);border:none;color:#051a10;font-family:'Syne',sans-serif;font-size:13px;font-weight:800;cursor:pointer;transition:all .2s;box-shadow:0 4px 18px rgba(109,250,204,0.22);display:flex;align-items:center;gap:7px}
+.btn-start:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 6px 24px rgba(109,250,204,0.32)}
+.btn-start:disabled{opacity:.4;cursor:default;transform:none;box-shadow:none}
+
+/* Toast */
+#toast{position:fixed;bottom:28px;right:28px;background:var(--surface2);border:1px solid var(--border);padding:12px 20px;border-radius:12px;font-size:13px;color:var(--text);box-shadow:0 8px 32px rgba(0,0,0,0.4);transform:translateY(12px);opacity:0;transition:all .25s;z-index:999;pointer-events:none}
+#toast.show{transform:translateY(0);opacity:1}
 </style>
 </head>
 <body>
+<div class="wrapper">
+  <header>
+    <div class="logo-row">
+      <div class="logo-icon">🎓</div>
+      <span class="logo-text">EMPIRE</span>
+    </div>
+    <h1>Khám phá<br><span>Khóa Học</span></h1>
+    <p class="subtitle">Tải toàn bộ tài liệu theo khóa học — gọn gàng trong 1 file ZIP</p>
+  </header>
 
-<h2>Auto Load All Courses</h2>
-<button onclick="loadAll()">Nhấn để lấy khóa học</button>
+  <div class="toolbar">
+    <div class="search-wrap">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input id="searchInput" type="text" placeholder="Tìm kiếm khóa học, bài giảng..." autocomplete="off" disabled>
+    </div>
+    <button id="loadBtn" onclick="loadAll()">⚡ Tải khóa học</button>
+  </div>
 
-<div id="content"></div>
+  <div class="filters" id="filterRow" style="display:none">
+    <span class="filter-label">Lọc:</span>
+    <button class="chip active" onclick="setFilter(this,'all')">Tất cả</button>
+    <button class="chip" onclick="setFilter(this,'video')">🎥 Video</button>
+    <button class="chip" onclick="setFilter(this,'doc')">📄 Tài liệu</button>
+    <span style="flex:1"></span>
+    <button class="expand-btn" onclick="expandAll()">Mở tất cả ▾</button>
+    <button class="expand-btn" onclick="collapseAll()">Đóng tất cả ▴</button>
+  </div>
+
+  <div class="stats" id="statsBar" style="display:none">
+    <div class="stat"><span class="stat-val" id="sCourses">0</span><span class="stat-label">Khóa học</span></div>
+    <div class="stat"><span class="stat-val" id="sChapters">0</span><span class="stat-label">Chương</span></div>
+    <div class="stat"><span class="stat-val" id="sLessons">0</span><span class="stat-label">Bài giảng</span></div>
+    <div class="stat"><span class="stat-val" id="sResources">0</span><span class="stat-label">Tài nguyên</span></div>
+  </div>
+
+  <div id="progressWrap">
+    <div class="progress-label" id="progressLabel">Đang tải danh sách...</div>
+    <div class="pbar"><div class="pbar-fill" id="progressFill"></div></div>
+  </div>
+
+  <div id="content"></div>
+</div>
+
+<!-- ZIP MODAL -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-top">
+      <div class="modal-toprow">
+        <div class="modal-title" id="modalTitle">📦 Tải ZIP khóa học</div>
+        <button class="modal-x" onclick="closeModal()">✕</button>
+      </div>
+      <div class="modal-sub" id="modalSub">Cấu trúc thư mục trong file ZIP</div>
+    </div>
+
+    <div class="modal-tree" id="modalTree"></div>
+
+    <div class="modal-progress" id="modalProgress">
+      <div>
+        <div class="prog-status" id="progStatus">Đang chuẩn bị...</div>
+        <div class="prog-sub" id="progSub"></div>
+      </div>
+      <div class="prog-bar-wrap">
+        <div class="prog-bar"><div class="prog-fill" id="progFill"></div></div>
+        <div class="prog-pct" id="progPct">0%</div>
+      </div>
+      <div class="phases" id="phaseRow">
+        <div class="phase" id="ph1"><div class="phase-dot"></div>Fetch file</div>
+        <div class="phase" id="ph2"><div class="phase-dot"></div>Đóng gói ZIP</div>
+        <div class="phase" id="ph3"><div class="phase-dot"></div>Xuất file</div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <span class="modal-note" id="modalNote">
+        Tất cả tài liệu (PDF, DOC...) sẽ được sắp xếp vào thư mục<br>
+        <code style="color:var(--accent3);font-size:11px">KhoaHoc / Chuong_N / BaiGiang / file.pdf</code>
+      </span>
+      <button class="btn-close" id="btnClose" onclick="closeModal()">Hủy</button>
+      <button class="btn-start" id="btnStart" onclick="startZip()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Tải ZIP
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
 
 <script>
-
-const API = "https://api.empire.io.vn/api/v1/";
+const API  = "https://api.empire.io.vn/api/v1/";
 const FILE = API + "files/";
+let stats = {courses:0,chapters:0,lessons:0,resources:0};
+let currentCourse = null;
+let zipRunning = false;
 
-function toggle(el){
-    el.style.display = el.style.display === "none" ? "block" : "none";
+// ── UTILS ──
+function toast(msg, dur=3000){
+  const t=document.getElementById("toast");
+  t.textContent=msg; t.classList.add("show");
+  clearTimeout(t._t);
+  t._t=setTimeout(()=>t.classList.remove("show"), dur);
 }
 
-async function loadAll(){
+function safe(s, maxLen=60){
+  return (s||"untitled")
+    .replace(/[\\/:*?"<>|]/g,"_")
+    .replace(/\s+/g," ").trim()
+    .substring(0, maxLen);
+}
 
-    const container = document.getElementById("content");
-    container.innerHTML = "Đang tải...";
-    
-    let page = 1;
-    let hasMore = true;
-    container.innerHTML = "";
+function getExt(fileUrl){
+  const m=(fileUrl||"").match(/\.([a-z0-9]{2,5})(\?|#|$)/i);
+  return m?m[1].toLowerCase():"bin";
+}
 
-    while(hasMore){
+function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
 
-        try{
-            const res = await fetch(API + "courses?page=" + page);
-            const data = await res.json();
+// ── COLLECT DOCS from course object ──
+// Returns [{path, url, title}]
+function collectDocs(course){
+  const files=[];
+  if(!course.chapters) return files;
+  const courseFolder=safe(course.title, 50);
+  course.chapters.forEach((ch, ci)=>{
+    const chapFolder=`Chuong_${String(ci+1).padStart(2,"0")}_${safe(ch.title, 40)}`;
+    if(!ch.lessons) return;
+    ch.lessons.forEach((lw, li)=>{
+      const lesson=lw.lesson||lw;
+      if(!lesson||!lesson.resources) return;
+      const lessonFolder=`Bai_${String(li+1).padStart(2,"0")}_${safe(lesson.title, 40)}`;
+      lesson.resources.forEach(rw=>{
+        const res=rw.resource||rw;
+        if(!res||!res.fileUrl) return;
+        if(res.type==="video") return;
+        const ext=getExt(res.fileUrl);
+        const fname=safe(res.title||"tai_lieu", 55)+"."+ext;
+        files.push({
+          path: `${courseFolder}/${chapFolder}/${lessonFolder}/${fname}`,
+          url: FILE+res.fileUrl,
+          title: res.title||fname,
+          ext
+        });
+      });
+    });
+  });
+  return files;
+}
 
-            if(!data.courses || data.courses.length === 0){
-                hasMore = false;
-                break;
-            }
+// ── OPEN MODAL ──
+function openZipModal(course){
+  if(zipRunning) return;
+  currentCourse=course;
 
-            for(const course of data.courses){
+  const files=collectDocs(course);
+  document.getElementById("modalTitle").textContent="📦 "+ safe(course.title,45);
+  document.getElementById("modalSub").textContent=
+    files.length===0
+      ? "Khóa học này không có tài liệu để tải."
+      : `${files.length} tài liệu · Cấu trúc thư mục bên dưới`;
 
-                const courseDiv = document.createElement("div");
-                courseDiv.className = "course";
-                courseDiv.innerText = "📚 " + course.title;
+  // Build tree
+  const tree=document.getElementById("modalTree");
+  tree.innerHTML="";
+  if(files.length===0){
+    tree.innerHTML='<span style="color:var(--muted);font-size:13px">Không có tài liệu nào.</span>';
+  } else {
+    // Render tree structure
+    const courseFolder=safe(course.title,50);
+    tree.innerHTML+=`<div class="tree-course">📁 ${esc(courseFolder)}/</div>`;
 
-                const courseChildren = document.createElement("div");
-                courseChildren.className = "children";
+    if(course.chapters){
+      course.chapters.forEach((ch,ci)=>{
+        if(!ch.lessons) return;
+        const chapFolder=`Chuong_${String(ci+1).padStart(2,"0")}_${safe(ch.title,40)}`;
+        // Check if chapter has any docs
+        const hasDoc=ch.lessons.some(lw=>{
+          const l=lw.lesson||lw;
+          return l&&l.resources&&l.resources.some(rw=>{const r=rw.resource||rw;return r&&r.fileUrl&&r.type!=="video";});
+        });
+        if(!hasDoc) return;
+        tree.innerHTML+=`<div class="tree-chapter">📂 ${esc(chapFolder)}/</div>`;
+        ch.lessons.forEach((lw,li)=>{
+          const lesson=lw.lesson||lw;
+          if(!lesson||!lesson.resources) return;
+          const docs=lesson.resources.filter(rw=>{const r=rw.resource||rw;return r&&r.fileUrl&&r.type!=="video";});
+          if(!docs.length) return;
+          const lessonFolder=`Bai_${String(li+1).padStart(2,"0")}_${safe(lesson.title,40)}`;
+          tree.innerHTML+=`<div class="tree-lesson">📄 ${esc(lessonFolder)}/</div>`;
+          docs.forEach(rw=>{
+            const res=rw.resource||rw;
+            const ext=getExt(res.fileUrl);
+            const fname=safe(res.title||"tai_lieu",55)+"."+ext;
+            const isPdf=ext==="pdf";
+            tree.innerHTML+=`<div class="tree-file">
+              <span class="tree-file-badge ${isPdf?'pdf':'doc'}">${ext}</span>
+              ${esc(fname)}
+            </div>`;
+          });
+        });
+      });
+    }
+  }
 
-                courseDiv.onclick = () => toggle(courseChildren);
+  // Reset progress UI
+  document.getElementById("modalProgress").style.display="none";
+  document.getElementById("progFill").style.width="0%";
+  document.getElementById("progPct").textContent="0%";
+  document.getElementById("btnStart").disabled=files.length===0;
+  document.getElementById("btnStart").textContent=files.length===0?"Không có file":"⬇ Tải ZIP";
+  document.getElementById("btnClose").textContent="Hủy";
+  document.getElementById("btnClose").disabled=false;
+  ["ph1","ph2","ph3"].forEach(id=>document.getElementById(id).className="phase");
+  document.getElementById("modalNote").style.display="";
 
-                container.appendChild(courseDiv);
-                container.appendChild(courseChildren);
+  document.getElementById("modalOverlay").classList.add("show");
+}
 
-                const detailRes = await fetch(API + "courses/slug/" + course.slug);
-                const detailData = await detailRes.json();
+function closeModal(){
+  if(zipRunning) return;
+  document.getElementById("modalOverlay").classList.remove("show");
+}
 
-                detailData.course.chapters.forEach(chapter=>{
+// ── START ZIP ──
+async function startZip(){
+  if(zipRunning||!currentCourse) return;
+  const files=collectDocs(currentCourse);
+  if(!files.length) return;
 
-                    const chapDiv = document.createElement("div");
-                    chapDiv.className = "chapter";
-                    chapDiv.innerText = "📘 " + chapter.title;
+  zipRunning=true;
+  const btnStart=document.getElementById("btnStart");
+  const btnClose=document.getElementById("btnClose");
+  btnStart.disabled=true; btnStart.innerHTML="⏳ Đang xử lý...";
+  btnClose.disabled=true;
+  document.getElementById("modalNote").style.display="none";
 
-                    const chapChildren = document.createElement("div");
-                    chapChildren.className = "children";
+  const prog=document.getElementById("modalProgress");
+  prog.style.display="flex";
 
-                    chapDiv.onclick = (e)=>{
-                        e.stopPropagation();
-                        toggle(chapChildren);
-                    };
+  const fill=document.getElementById("progFill");
+  const pct=document.getElementById("progPct");
+  const status=document.getElementById("progStatus");
+  const sub=document.getElementById("progSub");
 
-                    courseChildren.appendChild(chapDiv);
-                    courseChildren.appendChild(chapChildren);
+  function setPhase(p){
+    ["ph1","ph2","ph3"].forEach((id,i)=>{
+      const el=document.getElementById(id);
+      if(i+1<p) el.className="phase done";
+      else if(i+1===p) el.className="phase active";
+      else el.className="phase";
+    });
+  }
 
-                    chapter.lessons.forEach(lw=>{
+  // ── PHASE 1: Fetch all files ──
+  setPhase(1);
+  const zip=new JSZip();
+  let fetched=0, failed=0;
 
-                        const lesson = lw.lesson;
+  for(let i=0;i<files.length;i++){
+    const f=files[i];
+    status.textContent=`Đang tải: ${f.title}`;
+    sub.textContent=`${i+1} / ${files.length} file`;
+    const p=Math.round((i/files.length)*80);
+    fill.style.width=p+"%"; pct.textContent=p+"%";
 
-                        const lessonDiv = document.createElement("div");
-                        lessonDiv.className = "lesson";
-                        lessonDiv.innerText = "📖 " + lesson.title;
-
-                        const resDiv = document.createElement("div");
-                        resDiv.className = "resources";
-
-                        lessonDiv.onclick = (e)=>{
-                            e.stopPropagation();
-                            toggle(resDiv);
-                        };
-
-                        chapChildren.appendChild(lessonDiv);
-                        chapChildren.appendChild(resDiv);
-
-                        lesson.resources.forEach(rw=>{
-                            const res = rw.resource;
-                            if(!res) return;
-
-                            const link = document.createElement("a");
-                            link.href = FILE + res.fileUrl;
-                            link.target = "_blank";
-                            link.innerText =
-                                (res.type === "video" ? "🎥 " : "📄 ") + res.title;
-
-                            const wrap = document.createElement("div");
-                            wrap.style.marginTop = "5px";
-                            wrap.appendChild(link);
-
-                            resDiv.appendChild(wrap);
-                        });
-
-                    });
-
-                });
-
-            }
-
-            page++;
-
-        }catch(e){
-            hasMore = false;
-        }
+    try{
+      const resp=await fetch(f.url);
+      if(!resp.ok) throw new Error("HTTP "+resp.status);
+      const blob=await resp.blob();
+      zip.file(f.path, blob);
+      fetched++;
+    } catch(e) {
+      // Add a placeholder text file for failed
+      zip.file(f.path+".FAILED.txt", `Không thể tải file này.\nURL: ${f.url}\nLỗi: ${e.message}`);
+      failed++;
     }
 
-    alert("Load xong toàn bộ khóa!");
+    await sleep(80); // small breathing room
+  }
+
+  // ── PHASE 2: Generate ZIP ──
+  setPhase(2);
+  status.textContent="Đang đóng gói ZIP...";
+  sub.textContent=`${fetched} file thành công${failed>0?`, ${failed} lỗi`:""}`;
+  fill.style.width="85%"; pct.textContent="85%";
+
+  let zipBlob;
+  try{
+    zipBlob=await zip.generateAsync(
+      {type:"blob", compression:"DEFLATE", compressionOptions:{level:6}},
+      (meta)=>{
+        const p=85+Math.round(meta.percent*0.1);
+        fill.style.width=p+"%"; pct.textContent=p+"%";
+      }
+    );
+  } catch(e){
+    toast("❌ Lỗi khi tạo ZIP: "+e.message);
+    zipRunning=false; btnClose.disabled=false; btnClose.textContent="Đóng"; return;
+  }
+
+  // ── PHASE 3: Download ──
+  setPhase(3);
+  status.textContent="✅ Hoàn thành! Đang xuất file ZIP...";
+  fill.style.width="100%"; pct.textContent="100%";
+
+  const zipName=safe(currentCourse.title,50)+".zip";
+  const url=URL.createObjectURL(zipBlob);
+  const a=document.createElement("a");
+  a.href=url; a.download=zipName;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url), 8000);
+
+  zipRunning=false;
+  btnStart.textContent="✓ Đã tải xong";
+  btnClose.disabled=false; btnClose.textContent="Đóng";
+
+  const sizeMB=(zipBlob.size/1024/1024).toFixed(1);
+  sub.textContent=`Kích thước ZIP: ${sizeMB} MB`;
+  toast(`📦 Đã tạo ${zipName} (${sizeMB} MB, ${fetched} file)`);
 }
 
-</script>
+// ── LOAD ALL COURSES ──
+async function loadAll(){
+  const btn=document.getElementById("loadBtn");
+  const container=document.getElementById("content");
+  const pw=document.getElementById("progressWrap");
+  const pf=document.getElementById("progressFill");
+  const pl=document.getElementById("progressLabel");
 
+  btn.disabled=true; btn.textContent="⏳ Đang tải...";
+  container.innerHTML=""; stats={courses:0,chapters:0,lessons:0,resources:0};
+  pw.style.display="block";
+
+  let page=1,hasMore=true,courseList=[];
+  while(hasMore){
+    try{
+      const res=await fetch(API+"courses?page="+page);
+      const data=await res.json();
+      if(!data.courses||data.courses.length===0){hasMore=false;break;}
+      courseList.push(...data.courses); page++;
+    }catch{hasMore=false;}
+  }
+
+  if(courseList.length===0){
+    container.innerHTML='<div class="empty"><div class="empty-icon">🙁</div>Không tìm thấy khóa học nào.</div>';
+    btn.disabled=false; btn.textContent="⚡ Tải lại"; pw.style.display="none"; return;
+  }
+
+  for(let i=0;i<courseList.length;i++){
+    const course=courseList[i];
+    pf.style.width=((i/courseList.length)*100)+"%";
+    pl.textContent=`Đang tải (${i+1}/${courseList.length}): ${course.title}`;
+    try{
+      const dr=await fetch(API+"courses/slug/"+course.slug);
+      const dd=await dr.json();
+      renderCourse(dd.course, container); stats.courses++;
+    }catch{}
+  }
+
+  pf.style.width="100%";
+  setTimeout(()=>{pw.style.display="none";},500);
+
+  document.getElementById("searchInput").disabled=false;
+  document.getElementById("filterRow").style.display="flex";
+  document.getElementById("statsBar").style.display="flex";
+  document.getElementById("sCourses").textContent=stats.courses;
+  document.getElementById("sChapters").textContent=stats.chapters;
+  document.getElementById("sLessons").textContent=stats.lessons;
+  document.getElementById("sResources").textContent=stats.resources;
+
+  btn.disabled=false; btn.textContent="🔄 Tải lại";
+  toast(`✅ Đã tải ${stats.courses} khóa học — ${stats.lessons} bài giảng`);
+}
+
+const GRADS=[
+  "linear-gradient(135deg,#7c6dfa,#fa6d8e)",
+  "linear-gradient(135deg,#6dfacc,#7c6dfa)",
+  "linear-gradient(135deg,#fa6d8e,#facc6d)",
+  "linear-gradient(135deg,#6dccfa,#6dfacc)"
+];
+
+function renderCourse(course, container){
+  const chapCount=course.chapters?course.chapters.length:0;
+  const lessonCount=course.chapters?course.chapters.reduce((s,c)=>s+(c.lessons?c.lessons.length:0),0):0;
+  stats.chapters+=chapCount; stats.lessons+=lessonCount;
+
+  const docs=collectDocs(course);
+
+  const card=document.createElement("div");
+  card.className="course-card";
+  card.dataset.title=(course.title||"").toLowerCase();
+
+  const grad=GRADS[Math.floor(Math.random()*GRADS.length)];
+  const header=document.createElement("div");
+  header.className="course-header";
+
+  const zipBtnHtml=docs.length>0
+    ? `<button class="zip-btn" title="Tải ZIP tất cả tài liệu của khóa học này">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        ZIP (${docs.length})
+      </button>`
+    : "";
+
+  header.innerHTML=`
+    <div class="course-icon" style="background:${grad}">📚</div>
+    <div class="course-info">
+      <div class="course-title">${esc(course.title)}</div>
+      <div class="course-meta">${chapCount} chương · ${lessonCount} bài · ${docs.length} tài liệu</div>
+    </div>
+    ${zipBtnHtml}
+    <svg class="chevron" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>`;
+
+  const chapWrap=document.createElement("div");
+  chapWrap.className="chapters-wrap";
+
+  const zipBtn=header.querySelector(".zip-btn");
+  if(zipBtn){
+    zipBtn.addEventListener("click",(e)=>{e.stopPropagation(); openZipModal(course);});
+  }
+
+  header.addEventListener("click",(e)=>{
+    if(e.target.closest(".zip-btn")) return;
+    const open=chapWrap.style.display==="block";
+    chapWrap.style.display=open?"none":"block";
+    header.querySelector(".chevron").classList.toggle("open",!open);
+  });
+
+  if(course.chapters) course.chapters.forEach((ch,idx)=>renderChapter(ch,idx,chapWrap));
+  card.appendChild(header); card.appendChild(chapWrap); container.appendChild(card);
+}
+
+function renderChapter(chapter, idx, container){
+  const lessonCount=chapter.lessons?chapter.lessons.length:0;
+  const item=document.createElement("div"); item.className="chapter-item";
+  const header=document.createElement("div"); header.className="chapter-header";
+  header.innerHTML=`
+    <div class="chapter-num">${idx+1}</div>
+    <div class="chapter-title">${esc(chapter.title)}</div>
+    <span class="chapter-badge">${lessonCount} bài</span>
+    <svg class="chevron" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>`;
+  const lessWrap=document.createElement("div"); lessWrap.className="lessons-wrap";
+  header.onclick=(e)=>{
+    e.stopPropagation();
+    const open=lessWrap.style.display==="block";
+    lessWrap.style.display=open?"none":"block";
+    header.querySelector(".chevron").classList.toggle("open",!open);
+  };
+  if(chapter.lessons) chapter.lessons.forEach(lw=>renderLesson(lw.lesson||lw,lessWrap));
+  item.appendChild(header); item.appendChild(lessWrap); container.appendChild(item);
+}
+
+function renderLesson(lesson, container){
+  if(!lesson) return;
+  const resArr=lesson.resources||[];
+  const vidCount=resArr.filter(r=>(r.resource||r).type==="video").length;
+  const docCount=resArr.filter(r=>(r.resource||r).type!=="video").length;
+  stats.resources+=resArr.length;
+
+  const item=document.createElement("div"); item.className="lesson-item";
+  item.dataset.title=(lesson.title||"").toLowerCase();
+  const labels=[]; if(vidCount) labels.push(vidCount+" video"); if(docCount) labels.push(docCount+" tài liệu");
+  item.innerHTML=`
+    <div class="lesson-dot"></div>
+    <div class="lesson-name">${esc(lesson.title)}</div>
+    <span class="res-count">${labels.join(" · ")}</span>
+    <svg class="lesson-chevron" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>`;
+
+  const resWrap=document.createElement("div"); resWrap.className="resources-wrap";
+  item.onclick=(e)=>{
+    e.stopPropagation();
+    const open=resWrap.style.display==="flex";
+    resWrap.style.display=open?"none":"flex";
+    item.classList.toggle("open",!open);
+  };
+
+  resArr.forEach(rw=>{
+    const res=rw.resource||rw; if(!res||!res.fileUrl) return;
+    const isVideo=res.type==="video";
+    const link=document.createElement("a");
+    link.href=FILE+res.fileUrl; link.target="_blank"; link.className="res-link";
+    link.innerHTML=`<span class="res-type ${isVideo?'video':'doc'}">${isVideo?'video':'doc'}</span>${esc(res.title||res.fileUrl)}`;
+    resWrap.appendChild(link);
+  });
+
+  if(resArr.length===0){
+    const e=document.createElement("div");
+    e.style.cssText="font-size:12px;color:var(--muted);padding:4px 0";
+    e.textContent="Không có tài nguyên"; resWrap.appendChild(e);
+  }
+  container.appendChild(item); container.appendChild(resWrap);
+}
+
+// ── SEARCH ──
+document.addEventListener("DOMContentLoaded",()=>{
+  document.getElementById("searchInput").addEventListener("input",function(){
+    const q=this.value.toLowerCase().trim();
+    const cards=document.querySelectorAll(".course-card");
+    let anyVisible=false;
+    cards.forEach(card=>{
+      const title=card.dataset.title||"";
+      const lessons=card.querySelectorAll(".lesson-item");
+      let anyLessonMatch=false;
+      lessons.forEach(lesson=>{
+        const lt=lesson.dataset.title||"";
+        const match=lt.includes(q);
+        lesson.style.display=(q===""||match)?"":"none";
+        if(match) anyLessonMatch=true;
+      });
+      if(q===""){ card.classList.remove("hidden"); anyVisible=true; }
+      else if(title.includes(q)||anyLessonMatch){
+        card.classList.remove("hidden"); anyVisible=true;
+        if(anyLessonMatch){
+          card.querySelectorAll(".chapters-wrap,.lessons-wrap").forEach(w=>w.style.display="block");
+          card.querySelectorAll(".chevron").forEach(c=>c.classList.add("open"));
+        }
+      } else { card.classList.add("hidden"); }
+    });
+    const cont=document.getElementById("content");
+    const ex=cont.querySelector(".search-empty");
+    if(!anyVisible&&q!==""){
+      if(!ex){const d=document.createElement("div");d.className="empty search-empty";d.innerHTML=`<div class="empty-icon">🔍</div>Không có kết quả cho "<strong>${esc(q)}</strong>"`;cont.appendChild(d);}
+    } else { if(ex) ex.remove(); }
+  });
+
+  document.getElementById("modalOverlay").addEventListener("click",(e)=>{
+    if(e.target===document.getElementById("modalOverlay")) closeModal();
+  });
+});
+
+function setFilter(el,type){
+  document.querySelectorAll(".chip").forEach(c=>c.classList.remove("active")); el.classList.add("active");
+  document.querySelectorAll(".res-link").forEach(link=>{
+    if(type==="all"){link.style.display="";return;}
+    const isVideo=link.querySelector(".res-type")?.textContent.trim()==="video";
+    link.style.display=(type==="video"?isVideo:!isVideo)?"":"none";
+  });
+}
+function expandAll(){
+  document.querySelectorAll(".chapters-wrap,.lessons-wrap").forEach(w=>w.style.display="block");
+  document.querySelectorAll(".resources-wrap").forEach(w=>w.style.display="flex");
+  document.querySelectorAll(".chevron,.lesson-chevron").forEach(c=>c.classList.add("open"));
+  document.querySelectorAll(".lesson-item").forEach(l=>l.classList.add("open"));
+}
+function collapseAll(){
+  document.querySelectorAll(".chapters-wrap,.lessons-wrap,.resources-wrap").forEach(w=>w.style.display="none");
+  document.querySelectorAll(".chevron,.lesson-chevron").forEach(c=>c.classList.remove("open"));
+  document.querySelectorAll(".lesson-item").forEach(l=>l.classList.remove("open"));
+}
+function esc(str){if(!str)return"";return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
+</script>
 </body>
 </html>
